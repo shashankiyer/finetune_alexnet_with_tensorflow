@@ -7,9 +7,11 @@
 import tensorflow as tf
 import numpy as np
 
-from tensorflow.contrib.data import Dataset
+from tensorflow.data import Dataset
 from tensorflow.python.framework import dtypes
 from tensorflow.python.framework.ops import convert_to_tensor
+
+import re, os
 
 IMAGENET_MEAN = tf.constant([123.68, 116.779, 103.939], dtype=tf.float32)
 
@@ -20,7 +22,7 @@ class ImageDataGenerator(object):
     Requires Tensorflow >= version 1.12rc0
     """
 
-    def __init__(self, txt_file, mode, batch_size, num_classes, shuffle=True,
+    def __init__(self, txt_file, mode, batch_size, num_classes, data_dir, shuffle=True,
                  buffer_size=1000):
         """Create a new ImageDataGenerator.
 
@@ -49,6 +51,7 @@ class ImageDataGenerator(object):
         self.num_classes = num_classes
 
         # retrieve the data from the text file
+        self.data_dir = data_dir
         self._read_txt_file()
 
         # number of samples in the dataset
@@ -67,12 +70,12 @@ class ImageDataGenerator(object):
 
         # distinguish between train/infer. when calling the parsing functions
         if mode == 'training':
-            data = data.map(self._parse_function_train, num_threads=8,
-                      output_buffer_size=100*batch_size)
+            data = data.map(self._parse_function_train, num_parallel_calls=8)
+                      #output_buffer_size=100*batch_size)
 
         elif mode == 'inference':
-            data = data.map(self._parse_function_inference, num_threads=8,
-                      output_buffer_size=100*batch_size)
+            data = data.map(self._parse_function_inference, num_parallel_calls=8)
+                      #output_buffer_size=100*batch_size)
 
         else:
             raise ValueError("Invalid mode '%s'." % (mode))
@@ -86,16 +89,24 @@ class ImageDataGenerator(object):
 
         self.data = data
 
+    def __str_to_int(string):
+        for i in range (10):
+            if string[i] == '1':
+                out = i
+
+        return out
+
     def _read_txt_file(self):
         """Read the content of the text file and store it into lists."""
         self.img_paths = []
         self.labels = []
+        mat = re.compile('(?<=g )[0-1]( [0-1])*')
         with open(self.txt_file, 'r') as f:
             lines = f.readlines()
             for line in lines:
                 items = line.split(' ')
-                self.img_paths.append(items[0])
-                self.labels.append(int(items[1]))
+                self.img_paths.append(os.path.join(self.data_dir,items[0]))
+                self.labels.append(ImageDataGenerator.__str_to_int(re.search(mat, line)[0].split(" ")))
 
     def _shuffle_lists(self):
         """Conjoined shuffling of the list of paths and labels."""
@@ -139,6 +150,6 @@ class ImageDataGenerator(object):
         img_centered = tf.subtract(img_resized, IMAGENET_MEAN)
 
         # RGB -> BGR
-        img_bgr = img_centered[:, :, ::-1]
+        #img_bgr = img_centered[:, :, ::-1]
 
-        return img_bgr, one_hot
+        return img_centered, one_hot

@@ -20,32 +20,34 @@ import tensorflow as tf
 from alexnet import AlexNet
 from datagenerator import ImageDataGenerator
 from datetime import datetime
-from tensorflow.contrib.data import Iterator
+from tensorflow.data import Iterator
+import data_provider as dataset
+from validation_function import reli
 
 """
 Configuration Part.
 """
-
 # Path to the textfiles for the trainings and validation set
-train_file = '/path/to/train.txt'
-val_file = '/path/to/val.txt'
+train_file = '../../DeepHash/DeepHash/data/cifar10/train.txt'
+val_file = '../../DeepHash/DeepHash/data/cifar10/test.txt'
+data_dir = '../../DeepHash/DeepHash/data/cifar10'
 
 # Learning params
 learning_rate = 0.01
-num_epochs = 10
+num_epochs = 15
 batch_size = 128
 
 # Network params
 dropout_rate = 0.5
-num_classes = 2
-train_layers = ['fc8', 'fc7', 'fc6']
+num_classes = 10
+train_layers = ['fc8', 'fclat', 'fc7', 'fc6']
 
 # How often we want to write the tf.summary data to disk
 display_step = 20
 
 # Path for tf.summary.FileWriter and to store model checkpoints
-filewriter_path = "/tmp/finetune_alexnet/tensorboard"
-checkpoint_path = "/tmp/finetune_alexnet/checkpoints"
+filewriter_path = "tmp/finetune_alexnet/tensorboard"
+checkpoint_path = "tmp/finetune_alexnet/checkpoints"
 
 """
 Main Part of the finetuning Script.
@@ -53,7 +55,7 @@ Main Part of the finetuning Script.
 
 # Create parent path if it doesn't exist
 if not os.path.isdir(checkpoint_path):
-    os.mkdir(checkpoint_path)
+    os.makedirs(os.path.join(os.getcwd(), checkpoint_path))
 
 # Place data loading and preprocessing on the cpu
 with tf.device('/cpu:0'):
@@ -61,11 +63,13 @@ with tf.device('/cpu:0'):
                                  mode='training',
                                  batch_size=batch_size,
                                  num_classes=num_classes,
+                                 data_dir=data_dir,
                                  shuffle=True)
     val_data = ImageDataGenerator(val_file,
                                   mode='inference',
                                   batch_size=batch_size,
                                   num_classes=num_classes,
+                                  data_dir=data_dir,
                                   shuffle=False)
 
     # create an reinitializable iterator given the dataset structure
@@ -87,27 +91,50 @@ model = AlexNet(x, keep_prob, num_classes, train_layers)
 
 # Link variable to model output
 score = model.fc8
+embeddings = tf.round(model.fclat)
 
 # List of trainable variables of the layers we want to train
 var_list = [v for v in tf.trainable_variables() if v.name.split('/')[0] in train_layers]
 
 # Op for calculating the loss
 with tf.name_scope("cross_ent"):
-    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=score,
+    loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(logits=score,
                                                                   labels=y))
 
 # Train op
 with tf.name_scope("train"):
+
+    gst = tf.train.create_global_step()
+
     # Get gradients of all trainable variables
-    gradients = tf.gradients(loss, var_list)
-    gradients = list(zip(gradients, var_list))
+    optimiser = tf.train.GradientDescentOptimizer(learning_rate)
+
+    grads_and_vars = optimiser.compute_gradients(loss, var_list)
+    #gradients = tf.gradients(loss, var_list)
+    #gradients = list(zip(gradients, var_list))
+
+    fc6w_grad, _ = grads_and_vars[-8]
+    fc6b_grad, _ = grads_and_vars[-7]
+    fc7w_grad, _ = grads_and_vars[-6]
+    fc7b_grad, _ = grads_and_vars[-5]
+    fclatw_grad, _ = grads_and_vars[-4]
+    fclatb_grad, _ = grads_and_vars[-3]
+    fc8w_grad, _ = grads_and_vars[-2]
+    fc8b_grad, _ = grads_and_vars[-1]
 
     # Create optimizer and apply gradient descent to the trainable variables
-    optimizer = tf.train.GradientDescentOptimizer(learning_rate)
-    train_op = optimizer.apply_gradients(grads_and_vars=gradients)
+    #optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+    train_op = optimiser.apply_gradients([(fc6w_grad, var_list[0]),
+                                        (fc6b_grad, var_list[1]),
+                                        (fc7w_grad, var_list[2]),
+                                        (fc7b_grad, var_list[3]),
+                                        (fclatw_grad, var_list[4]),
+                                        (fclatb_grad, var_list[5]),
+                                        (fc8w_grad, var_list[6]),
+                                        (fc8b_grad, var_list[7])], global_step=gst)
 
 # Add gradients to summary
-for gradient, var in gradients:
+for gradient, var in grads_and_vars:
     tf.summary.histogram(var.name + '/gradient', gradient)
 
 # Add the variables we train to the summary
@@ -158,6 +185,9 @@ with tf.Session() as sess:
     # Loop over number of epochs
     for epoch in range(num_epochs):
 
+        database_img = []
+        database_lab = []
+
         print("{} Epoch number: {}".format(datetime.now(), epoch+1))
 
         # Initialize iterator with the training dataset
@@ -167,11 +197,14 @@ with tf.Session() as sess:
 
             # get next batch of data
             img_batch, label_batch = sess.run(next_batch)
-
+            
             # And run the training op
-            sess.run(train_op, feed_dict={x: img_batch,
+            _, emb = sess.run([train_op, embeddings], feed_dict={x: img_batch,
                                           y: label_batch,
                                           keep_prob: dropout_rate})
+
+            database_img.extend(emb.tolist())
+            database_lab.extend(label_batch)
 
             # Generate summary with the current batch of data and write to file
             if step % display_step == 0:
@@ -186,23 +219,42 @@ with tf.Session() as sess:
         sess.run(validation_init_op)
         test_acc = 0.
         test_count = 0
+        val_img = []
+        val_lab = []
         for _ in range(val_batches_per_epoch):
 
             img_batch, label_batch = sess.run(next_batch)
-            acc = sess.run(accuracy, feed_dict={x: img_batch,
+            acc, emb = sess.run([accuracy, embeddings], feed_dict={x: img_batch,
                                                 y: label_batch,
                                                 keep_prob: 1.})
             test_acc += acc
             test_count += 1
+            val_img.extend(emb.tolist())
+            val_lab.extend(label_batch)
         test_acc /= test_count
-        print("{} Validation Accuracy = {:.4f}".format(datetime.now(),
+        #val_img, val_lab = val_data.all_data
+
+        print("{} Rel(i) Validation Accuracy = {:.4f}".format(datetime.now(),
+                                                       reli(120, val_img, val_lab, database_img, database_lab)))
+
+        print("{} Softmax Validation Accuracy = {:.4f}".format(datetime.now(),
                                                        test_acc))
-        print("{} Saving checkpoint of model...".format(datetime.now()))
+        #print("{} Saving checkpoint of model...".format(datetime.now()))
 
         # save checkpoint of the model
-        checkpoint_name = os.path.join(checkpoint_path,
-                                       'model_epoch'+str(epoch+1)+'.ckpt')
-        save_path = saver.save(sess, checkpoint_name)
+        #checkpoint_name = os.path.join(checkpoint_path,
+        #                               'model_epoch'+str(epoch+1)+'.ckpt')
+        #save_path = saver.save(sess, checkpoint_name)
 
-        print("{} Model checkpoint saved at {}".format(datetime.now(),
-                                                       checkpoint_name))
+        model_dict = {}
+        for layer in model.deep_params:
+            model_dict[layer] = sess.run(model.deep_params[layer])
+
+        print("saving model to %s" % 'model_data/trained_weights/weights_biases.npy')
+        folder = os.path.dirname('model_data/trained_weights')
+        if os.path.exists(folder) is False:
+            os.makedirs(folder)
+
+        np.save('model_data/trained_weights/weights_biases.npy', np.array(model_dict))
+
+        print("Model saved at {}".format(datetime.now()))
