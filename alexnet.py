@@ -90,8 +90,8 @@ class AlexNet(object):
         dropout6 = dropout(fc6, self.KEEP_PROB)
 
         # 7th Layer: FC (w ReLu) -> Dropout
-        fc7 = fc(dropout6, 4096, 4096, deep_params=self.deep_params, name='fc7')
-        dropout7 = dropout(fc7, self.KEEP_PROB)
+        self.fc7 = fc(dropout6, 4096, 4096, deep_params=self.deep_params, name='fc7')
+        dropout7 = dropout(self.fc7, self.KEEP_PROB)
 
         self.fclat = fc(dropout7, 4096, 48, deep_params=self.deep_params, name = 'fclat', relu=False, sigmoid=True)
 

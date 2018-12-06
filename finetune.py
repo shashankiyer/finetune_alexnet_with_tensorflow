@@ -22,13 +22,13 @@ from datagenerator import ImageDataGenerator
 from datetime import datetime
 from tensorflow.data import Iterator
 import data_provider as dataset
-from validation_function import reli
+from validation_function2 import reli
 
 """
 Configuration Part.
 """
 # Path to the textfiles for the trainings and validation set
-train_file = '../../DeepHash/DeepHash/data/cifar10/train.txt'
+train_file = '../../DeepHash/DeepHash/data/cifar10/test.txt'
 val_file = '../../DeepHash/DeepHash/data/cifar10/test.txt'
 data_dir = '../../DeepHash/DeepHash/data/cifar10'
 
@@ -92,6 +92,7 @@ model = AlexNet(x, keep_prob, num_classes, train_layers)
 # Link variable to model output
 score = model.fc8
 embeddings = tf.round(model.fclat)
+embeddings_floats = model.fc7
 
 # List of trainable variables of the layers we want to train
 var_list = [v for v in tf.trainable_variables() if v.name.split('/')[0] in train_layers]
@@ -185,8 +186,9 @@ with tf.Session() as sess:
     # Loop over number of epochs
     for epoch in range(num_epochs):
 
-        database_img = []
+        database_emb = []
         database_lab = []
+        database_embf = []
 
         print("{} Epoch number: {}".format(datetime.now(), epoch+1))
 
@@ -199,12 +201,13 @@ with tf.Session() as sess:
             img_batch, label_batch = sess.run(next_batch)
             
             # And run the training op
-            _, emb = sess.run([train_op, embeddings], feed_dict={x: img_batch,
+            _, emb, embf = sess.run([train_op, embeddings, embeddings_floats], feed_dict={x: img_batch,
                                           y: label_batch,
                                           keep_prob: dropout_rate})
 
-            database_img.extend(emb.tolist())
+            database_emb.extend(emb.tolist())
             database_lab.extend(label_batch)
+            database_embf.extend(embf.tolist())
 
             # Generate summary with the current batch of data and write to file
             if step % display_step == 0:
@@ -219,23 +222,46 @@ with tf.Session() as sess:
         sess.run(validation_init_op)
         test_acc = 0.
         test_count = 0
-        val_img = []
+        val_emb = []
         val_lab = []
+        val_embf = []
         for _ in range(val_batches_per_epoch):
 
             img_batch, label_batch = sess.run(next_batch)
-            acc, emb = sess.run([accuracy, embeddings], feed_dict={x: img_batch,
+            acc, emb, embf = sess.run([accuracy, embeddings, embeddings_floats], feed_dict={x: img_batch,
                                                 y: label_batch,
                                                 keep_prob: 1.})
             test_acc += acc
             test_count += 1
-            val_img.extend(emb.tolist())
+            val_emb.extend(emb.tolist())
             val_lab.extend(label_batch)
+            val_embf.extend(embf.tolist())
         test_acc /= test_count
         #val_img, val_lab = val_data.all_data
+        val_emb = np.array(val_emb)
+        val_embf = np.array(val_embf)
+        val_lab = np.array(val_lab)
 
+        database_emb = np.array(database_emb)
+        database_embf = np.array(database_embf)
+        database_lab = np.array(database_lab)
+        '''
+        my_dict = {}
+        my_dict['val_emb'] = val_emb
+        my_dict['val_embf'] = val_embf
+        my_dict['val_lab'] = val_lab
+        my_dict['database_emb'] = database_emb
+        my_dict['database_embf'] = database_embf
+        my_dict['database_lab'] = database_lab
+
+        try:
+            np.save('model_data/trained_weights/data.npy', np.array(my_dict))
+        except:
+            print("couldn't save")
+        '''
+        print("Precision computation")
         print("{} Rel(i) Validation Accuracy = {:.4f}".format(datetime.now(),
-                                                       reli(120, val_img, val_lab, database_img, database_lab)))
+                                                       reli(12, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
 
         print("{} Softmax Validation Accuracy = {:.4f}".format(datetime.now(),
                                                        test_acc))
@@ -245,7 +271,7 @@ with tf.Session() as sess:
         #checkpoint_name = os.path.join(checkpoint_path,
         #                               'model_epoch'+str(epoch+1)+'.ckpt')
         #save_path = saver.save(sess, checkpoint_name)
-
+        
         model_dict = {}
         for layer in model.deep_params:
             model_dict[layer] = sess.run(model.deep_params[layer])
