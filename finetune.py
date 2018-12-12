@@ -28,17 +28,17 @@ from validation_function2 import reli
 Configuration Part.
 """
 # Path to the textfiles for the trainings and validation set
-train_file = '../../DeepHash/DeepHash/data/cifar10/test.txt'
-val_file = '../../DeepHash/DeepHash/data/cifar10/test.txt'
-data_dir = '../../DeepHash/DeepHash/data/cifar10'
+train_file = 'data/cifar10/fulltrain.txt'
+val_file = 'data/cifar10/fulltest_head1000.txt'
+data_dir = 'data/cifar10'
 
 # Learning params
 learning_rate = 0.01
-num_epochs = 15
+num_epochs = 1250
 batch_size = 128
 
 # Network params
-dropout_rate = 0.5
+dropout_rate = 0.75
 num_classes = 10
 train_layers = ['fc8', 'fclat', 'fc7', 'fc6']
 
@@ -260,8 +260,14 @@ with tf.Session() as sess:
             print("couldn't save")
         '''
         print("Precision computation")
-        print("{} Rel(i) Validation Accuracy = {:.4f}".format(datetime.now(),
+        print("{} Rel(i) Validation Accuracy(3) = {:.4f}".format(datetime.now(),
+                                                       reli(3, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        print("{} Rel(i) Validation Accuracy(6) = {:.4f}".format(datetime.now(),
+                                                       reli(6, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        print("{} Rel(i) Validation Accuracy(12) = {:.4f}".format(datetime.now(),
                                                        reli(12, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        print("{} Rel(i) Validation Accuracy(24) = {:.4f}".format(datetime.now(),
+                                                       reli(24, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
 
         print("{} Softmax Validation Accuracy = {:.4f}".format(datetime.now(),
                                                        test_acc))
