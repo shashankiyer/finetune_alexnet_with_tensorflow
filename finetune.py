@@ -260,14 +260,14 @@ with tf.Session() as sess:
             print("couldn't save")
         '''
         print("Precision computation")
-        print("{} Rel(i) Validation Accuracy(3) = {:.4f}".format(datetime.now(),
-                                                       reli(3, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
-        print("{} Rel(i) Validation Accuracy(6) = {:.4f}".format(datetime.now(),
-                                                       reli(6, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        #print("{} Rel(i) Validation Accuracy(3) = {:.4f}".format(datetime.now(),
+        #                                               reli(3, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        #print("{} Rel(i) Validation Accuracy(6) = {:.4f}".format(datetime.now(),
+        #                                               reli(6, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
         print("{} Rel(i) Validation Accuracy(12) = {:.4f}".format(datetime.now(),
                                                        reli(12, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
-        print("{} Rel(i) Validation Accuracy(24) = {:.4f}".format(datetime.now(),
-                                                       reli(24, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        #print("{} Rel(i) Validation Accuracy(24) = {:.4f}".format(datetime.now(),
+        #                                               reli(24, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
 
         print("{} Softmax Validation Accuracy = {:.4f}".format(datetime.now(),
                                                        test_acc))
