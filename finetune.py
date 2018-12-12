@@ -40,7 +40,8 @@ batch_size = 128
 # Network params
 dropout_rate = 0.75
 num_classes = 10
-train_layers = ['fc8', 'fclat', 'fc7', 'fc6']
+#train_layers = ['fc8', 'fclat', 'fc7', 'fc6']
+train_layers = ['fc8', 'fc7', 'fc6']
 
 # How often we want to write the tf.summary data to disk
 display_step = 20
@@ -91,8 +92,8 @@ model = AlexNet(x, keep_prob, num_classes, train_layers)
 
 # Link variable to model output
 score = model.fc8
-embeddings = tf.round(model.fclat)
-embeddings_floats = model.fc7
+#embeddings = tf.round(model.fclat)
+#embeddings_floats = model.fc7
 
 # List of trainable variables of the layers we want to train
 var_list = [v for v in tf.trainable_variables() if v.name.split('/')[0] in train_layers]
@@ -114,12 +115,12 @@ with tf.name_scope("train"):
     #gradients = tf.gradients(loss, var_list)
     #gradients = list(zip(gradients, var_list))
 
-    fc6w_grad, _ = grads_and_vars[-8]
-    fc6b_grad, _ = grads_and_vars[-7]
-    fc7w_grad, _ = grads_and_vars[-6]
-    fc7b_grad, _ = grads_and_vars[-5]
-    fclatw_grad, _ = grads_and_vars[-4]
-    fclatb_grad, _ = grads_and_vars[-3]
+    fc6w_grad, _ = grads_and_vars[-6]
+    fc6b_grad, _ = grads_and_vars[-5]
+    fc7w_grad, _ = grads_and_vars[-4]
+    fc7b_grad, _ = grads_and_vars[-3]
+    #fclatw_grad, _ = grads_and_vars[-4]
+    #fclatb_grad, _ = grads_and_vars[-3]
     fc8w_grad, _ = grads_and_vars[-2]
     fc8b_grad, _ = grads_and_vars[-1]
 
@@ -129,10 +130,10 @@ with tf.name_scope("train"):
                                         (fc6b_grad, var_list[1]),
                                         (fc7w_grad, var_list[2]),
                                         (fc7b_grad, var_list[3]),
-                                        (fclatw_grad*10, var_list[4]),
-                                        (fclatb_grad*10, var_list[5]),
-                                        (fc8w_grad, var_list[6]),
-                                        (fc8b_grad, var_list[7])], global_step=gst)
+                                        #(fclatw_grad, var_list[4]),
+                                        #(fclatb_grad, var_list[5]),
+                                        (fc8w_grad, var_list[4]),
+                                        (fc8b_grad, var_list[5])], global_step=gst)
 
 # Add gradients to summary
 for gradient, var in grads_and_vars:
@@ -201,13 +202,14 @@ with tf.Session() as sess:
             img_batch, label_batch = sess.run(next_batch)
             
             # And run the training op
-            _, emb, embf = sess.run([train_op, embeddings, embeddings_floats], feed_dict={x: img_batch,
+            #_, emb, embf = sess.run([train_op, embeddings, embeddings_floats], feed_dict={x: img_batch,
+            _  = sess.run(train_op, feed_dict={x: img_batch,
                                           y: label_batch,
                                           keep_prob: dropout_rate})
 
-            database_emb.extend(emb.tolist())
-            database_lab.extend(label_batch)
-            database_embf.extend(embf.tolist())
+            #database_emb.extend(emb.tolist())
+            #database_lab.extend(label_batch)
+            #database_embf.extend(embf.tolist())
 
             # Generate summary with the current batch of data and write to file
             if step % display_step == 0:
@@ -222,29 +224,30 @@ with tf.Session() as sess:
         sess.run(validation_init_op)
         test_acc = 0.
         test_count = 0
-        val_emb = []
-        val_lab = []
-        val_embf = []
+        #val_emb = []
+        #val_lab = []
+        #val_embf = []
         for _ in range(val_batches_per_epoch):
 
             img_batch, label_batch = sess.run(next_batch)
-            acc, emb, embf = sess.run([accuracy, embeddings, embeddings_floats], feed_dict={x: img_batch,
+            #acc, emb, embf = sess.run([accuracy, embeddings, embeddings_floats], feed_dict={x: img_batch,
+            acc = sess.run(accuracy, feed_dict={x: img_batch,
                                                 y: label_batch,
                                                 keep_prob: 1.})
             test_acc += acc
             test_count += 1
-            val_emb.extend(emb.tolist())
-            val_lab.extend(label_batch)
-            val_embf.extend(embf.tolist())
+            #val_emb.extend(emb.tolist())
+            #val_lab.extend(label_batch)
+            #val_embf.extend(embf.tolist())
         test_acc /= test_count
         #val_img, val_lab = val_data.all_data
-        val_emb = np.array(val_emb)
-        val_embf = np.array(val_embf)
-        val_lab = np.array(val_lab)
+        #val_emb = np.array(val_emb)
+        #val_embf = np.array(val_embf)
+        #val_lab = np.array(val_lab)
 
-        database_emb = np.array(database_emb)
-        database_embf = np.array(database_embf)
-        database_lab = np.array(database_lab)
+        #database_emb = np.array(database_emb)
+        #database_embf = np.array(database_embf)
+        #database_lab = np.array(database_lab)
         '''
         my_dict = {}
         my_dict['val_emb'] = val_emb
@@ -264,8 +267,8 @@ with tf.Session() as sess:
         #                                               reli(3, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
         #print("{} Rel(i) Validation Accuracy(6) = {:.4f}".format(datetime.now(),
         #                                               reli(6, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
-        print("{} Rel(i) Validation Accuracy(12) = {:.4f}".format(datetime.now(),
-                                                       reli(12, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
+        #print("{} Rel(i) Validation Accuracy(12) = {:.4f}".format(datetime.now(),
+        #                                               reli(12, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
         #print("{} Rel(i) Validation Accuracy(24) = {:.4f}".format(datetime.now(),
         #                                               reli(24, 120, val_emb, val_embf, val_lab, database_emb, database_embf, database_lab)))
 
