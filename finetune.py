@@ -129,8 +129,8 @@ with tf.name_scope("train"):
                                         (fc6b_grad, var_list[1]),
                                         (fc7w_grad, var_list[2]),
                                         (fc7b_grad, var_list[3]),
-                                        (fclatw_grad, var_list[4]),
-                                        (fclatb_grad, var_list[5]),
+                                        (fclatw_grad*10, var_list[4]),
+                                        (fclatb_grad*10, var_list[5]),
                                         (fc8w_grad, var_list[6]),
                                         (fc8b_grad, var_list[7])], global_step=gst)
 
