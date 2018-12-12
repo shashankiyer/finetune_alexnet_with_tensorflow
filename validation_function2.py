@@ -45,7 +45,7 @@ def reli_image_wise(k, each_query, list_indices, database_emb_float, each_query_
     return res
     
 
-def reli(threshold, k, query_emb_bin, query_emb_float, query_lab, database_emb_bin, database_emb_float, database_lab):
+def reli(threshold, k, query_emb_bin, query_emb_float, query_lab, database_emb_bin, database_emb_float, database_lab, fine=False):
     
     hamming = compute_hamming_dist(query_emb_bin, database_emb_bin)
     
