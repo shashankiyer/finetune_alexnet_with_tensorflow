@@ -138,7 +138,7 @@ def test(epoch):
         best_acc = acc
 
 
-for epoch in range(start_epoch, start_epoch+150):
+for epoch in range(start_epoch, start_epoch+350):
     print('epoch=',epoch)
     train(epoch)
     test(epoch)
